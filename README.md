@@ -18,7 +18,7 @@ Play video by Kollus Web-token : Sample Source
 git clone https://github.com/kollus-service/kollus-play-video-ruby
 cd kollus-play-video-ruby-ruby
 
-bundler install
+bundle install
 ```
 Copy .config.yml to config.yml and Edit this.
 
