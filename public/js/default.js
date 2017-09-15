@@ -112,7 +112,10 @@ $(document).on('click', 'button[data-action=modal-play-video]', function(e) {
             '    </div>\n' +
             '</div>\n' +
             '<div class="modal-footer">\n' +
-            '    <button type="button" class="btn btn-default" data-dismiss="modal"><span class="fa fa-times"></span> Close</button>\n' +
+            '    <div class="btn-group">\n' +
+            '        <a href="' + data.web_token_url + '" class="btn btn-warning" target="_blank"><span class="fa fa-link"> Link</a>\n' +
+            '        <button type="button" class="btn btn-default" data-dismiss="modal"><span class="fa fa-times"></span> Close</button>\n' +
+            '    </div>\n' +
             '</div>'
         );
 

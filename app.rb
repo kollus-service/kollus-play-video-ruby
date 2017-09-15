@@ -68,7 +68,7 @@ get /\/channel\/?(.+)?/ do |channel_key|
       if !channel_key.nil?
         channel = channels.find { |c| c.key == channel_key }
       else
-        channel = channels.shift
+        channel = channels.first
         channel_key = channel.key
       end
     end
@@ -107,7 +107,11 @@ post /\/auth\/web-token-url\/(.+)\/(.+)/ do |channel_key, upload_file_key|
     title: media_content.title,
     web_token_url: kollus_video_gateway_client.wet_token_url(
       media_content_key: media_content.media_content_key,
-      client_user_id: session[:client_user_id]
+      client_user_id: session[:client_user_id],
+      options: {
+        # media_profile_key: '',
+        expire_time: settings.kollus['play_options']['expire_time'] # 1day
+      }
     )
   }.to_json
 end

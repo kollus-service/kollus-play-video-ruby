@@ -59,7 +59,9 @@ class KollusVideoGatewayClient
   # @param [String|Nil] custom_key
   # @param [Hash] options
   # @return [String]
-  def wet_token_url(media_content_key:, client_user_id: nil, custom_key: nil, options: { kind: 's' })
+  def wet_token_url(media_content_key:, client_user_id: nil, custom_key: nil, options: {})
+    options[:kind] = 's' if options[:kind].nil?
+
     mode_path = options[:kind]
     params = { autoplay: 1 }
 
