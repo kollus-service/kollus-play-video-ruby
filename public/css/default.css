@@ -24,5 +24,6 @@ div.flashes div.alert-dismissible {
 
 th.poster { width: 90px; }
 th.upload-file-key { width: 150px; }
+th.media-content-key { width: 150px; }
 th.status { width: 50px; }
-th.action { width: 100px; }
+th.action { width: 150px; }

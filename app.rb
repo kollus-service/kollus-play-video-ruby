@@ -54,39 +54,39 @@ get /\/channel\/?(.+)?/ do |channel_key|
     redirect to('/')
   end
 
-  locals = { exists_config: settings.exists_config, kollus: settings.kollus, client_user_id: session[:client_user_id] }
+  locals = {
+    exists_config: settings.exists_config,
+    kollus: settings.kollus,
+    client_user_id: session[:client_user_id]
+  }
 
-  channel = nil
   channels = []
   media_contents = []
   if settings.exists_config
     # @type [KollusApiClient] kollus_api_client
     kollus_api_client = settings.kollus_api_client
     channels = kollus_api_client.channels
+    # channel = nil
 
     unless channels.empty?
-      if !channel_key.nil?
-        channel = channels.find { |c| c.key == channel_key }
-      else
-        channel = channels.first
-        channel_key = channel.key
-      end
+      channel = channel_key.nil? ? channels.first : channels.find { |c| c.key == channel_key }
+      channel_key = channel.key unless channel.nil?
     end
 
-    raise 'Channel is not exists.' if channel.nil?
+    # raise 'Channel is not exists.' if channel_key.nil?
 
     result = kollus_api_client.find_channel_media_contents(channel_key: channel_key)
     media_contents = result[:items]
   end
 
   locals[:channels] = channels
-  locals[:channel] = channel
+  locals[:channel_key] = channel_key
   locals[:media_contents] = media_contents
 
   erb :channel, locals: locals
 end
 
-post /\/auth\/web-token-url\/(.+)\/(.+)/ do |channel_key, upload_file_key|
+post /\/auth\/play-video-url\/(.+)\/(.+)/ do |channel_key, upload_file_key|
   if session[:client_user_id].nil?
     redirect to('/')
   end
@@ -105,12 +105,107 @@ post /\/auth\/web-token-url\/(.+)\/(.+)/ do |channel_key, upload_file_key|
   content_type :json, 'charset' => 'utf-8'
   {
     title: media_content.title,
-    web_token_url: kollus_video_gateway_client.wet_token_url(
+    web_token_url: kollus_video_gateway_client.web_token_url_by_media_content_key(
       media_content_key: media_content.media_content_key,
       client_user_id: session[:client_user_id],
       options: {
-        # media_profile_key: '',
-        expire_time: settings.kollus['play_options']['expire_time'] # 1day
+        expire_time: settings.kollus['play_options']['expire_time'], # 1day
+        autoplay: true
+      }
+    )
+  }.to_json
+end
+
+post /\/auth\/download-video-url\/(.+)\/(.+)/ do |channel_key, upload_file_key|
+  if session[:client_user_id].nil?
+    redirect to('/')
+  end
+
+  # @type [KollusApiClient] kollus_api_client
+  kollus_api_client = settings.kollus_api_client
+  # @type [KollusVideoGatewayClient] kollus_video_gateway_client
+  kollus_video_gateway_client = settings.kollus_video_gateway_client
+
+  # @type [MediaContent] media_content
+  media_content = kollus_api_client.channel_media_content(
+    channel_key: channel_key,
+    upload_file_key: upload_file_key
+  )
+
+  content_type :json, 'charset' => 'utf-8'
+  {
+    title: media_content.title,
+    web_token_url: kollus_video_gateway_client.web_token_url_by_media_content_key(
+      media_content_key: media_content.media_content_key,
+      client_user_id: session[:client_user_id],
+      options: {
+        expire_time: settings.kollus['play_options']['expire_time'], # 1day
+        download: true
+      }
+    )
+  }.to_json
+end
+
+post /\/auth\/play-video-playlist\/(.+)/ do |channel_key|
+  if session[:client_user_id].nil?
+    redirect to('/')
+  end
+
+  # @type [KollusApiClient] kollus_api_client
+  kollus_api_client = settings.kollus_api_client
+  # @type [KollusVideoGatewayClient] kollus_video_gateway_client
+  kollus_video_gateway_client = settings.kollus_video_gateway_client
+
+  media_items = params['selected_media_items'].map do |index, media_item|
+    media_content = kollus_api_client.channel_media_content(
+      channel_key: channel_key,
+      upload_file_key: media_item['upload_file_key']
+    )
+
+    MediaItem.new({ media_content_key: media_content.media_content_key })
+  end
+
+  content_type :json, 'charset' => 'utf-8'
+  {
+    web_token_url: kollus_video_gateway_client.web_token_url_by_media_items(
+      media_items: media_items,
+      client_user_id: session[:client_user_id],
+      options: {
+        kind: 'si',
+        expire_time: settings.kollus['play_options']['expire_time'], # 1day
+        autoplay: true
+      }
+    )
+  }.to_json
+end
+
+post /\/auth\/download-multi-video\/(.+)/ do |channel_key|
+  if session[:client_user_id].nil?
+    redirect to('/')
+  end
+
+  # @type [KollusApiClient] kollus_api_client
+  kollus_api_client = settings.kollus_api_client
+  # @type [KollusVideoGatewayClient] kollus_video_gateway_client
+  kollus_video_gateway_client = settings.kollus_video_gateway_client
+
+  media_items = params['selected_media_items'].map do |index, media_item|
+    media_content = kollus_api_client.channel_media_content(
+      channel_key: channel_key,
+      upload_file_key: media_item['upload_file_key']
+    )
+
+    MediaItem.new({ media_content_key: media_content.media_content_key })
+  end
+
+  content_type :json, 'charset' => 'utf-8'
+  {
+    web_token_url: kollus_video_gateway_client.web_token_url_by_media_items(
+      media_items: media_items,
+      client_user_id: session[:client_user_id],
+      options: {
+        kind: 'si',
+        expire_time: settings.kollus['play_options']['expire_time'], # 1day
       }
     )
   }.to_json

@@ -1,16 +1,16 @@
 # Kollus Play Video By Ruby
 
-Play video by Kollus Web-token : Sample Source
+Play video or download by Kollus WebToken : Sample Source
 
 ## Requirement
 
 * [ruby](https://www.ruby-lang.org/) : 2.0 above
   * module
-    * [sinatra](http://www.sinatrarb.com/) : for smaple code's web framework
+    * [sinatra](http://www.sinatrarb.com/) : for sample code's web framework
     * [sinatra-contrib](http://www.sinatrarb.com/contrib/)
     * [jwt](https://github.com/jwt/ruby-jwt) : for kollus web-token
 * [jQuery](https://jquery.com) : 3.2.1
-* [Boostrap](https://getbootstrap.com/docs/3.3/) : for smaple code
+* [Boostrap 3](https://getbootstrap.com/docs/3.3/) : for sample code
   
 ## Installation
 
@@ -50,70 +50,80 @@ ruby app.rb
 Open browser '[http://localhost:4567](http://localhost:4567)' and You must login.
 
 ## Development flow
-1. Call local server api for generate 'web-token-url' on browser
-   * '/api/web-token-url' in app.rb
-   * use web_token in kollus_video_gateway_client.rb
-2. Open iframe in instant modal
+
+### Play video
+
+1. Press 'Play' button and call local server api for generate 'web-token-url' on browser
+   * '/auth/play-video-url/{channel_key}/{upload_file_key}' in app.rb
+2. Generate WebTokenURL
+   * use web_token_url_by_media_content_key in lib/client/kollus_video_gateway_client.rb
+   * use web_token_by_media_items in lib/client/kollus_video_gateway_client.rb
+3. Open iframe + web-token-url in instant modal
    * use modal-play-video event in public/js/default.js
-3. If you want... Kollus Player can use 'kollus play callback'
+4. If you want... Kollus Player App can use 'kollus play callback'
+
+### Download video
+
+0. You must install Kollus Player App.
+1. Press 'Download' button and call local server api for generate 'web-token-url' on browser
+   * '/auth/download-video-url/{channel_key}/{upload_file_key}' in app.rb
+2. Generate WebTokenURL
+   * use web_token_url_by_media_content_key in lib/client/kollus_video_gateway_client.rb
+   * use web_token_by_media_items in lib/client/kollus_video_gateway_client.rb
+3. Open iframe + web-token-url in instant modal
+   * use modal-download-video event in public/js/default.js
+4. Call Kollus Player App
+5. If you want... Kollus Player App can use 'kollus drm callback'
+6. If your platform is mac osx or media is not encrypted, it will be streaming.
+
+### Play video playlist
+
+0. You must install Kollus Player App.
+1. Select video.
+2. Press 'Play playlist' button and call local server api for generate 'web-token-url' on browser
+   * '/auth/play-video-playlist/{channel_key}' in app.rb
+3. Generate WebTokenURL
+   * use web_token_url_by_media_items in lib/client/kollus_video_gateway_client.rb
+   * use web_token_by_media_items in lib/client/kollus_video_gateway_client.rb
+4. Call Kollus Player App
+5. If your platform is mac osx or more environments, is not working.
+
+### Download Multi video
+
+0. You must install Kollus Player App.
+1. Select video.
+2. Press 'Download selected' button and call local server api for generate 'web-token-url' on browser
+   * '/auth/download-multi-video/{channel_key}' in app.rb
+3. Generate WebTokenURL
+   * use web_token_url_by_media_items in lib/client/kollus_video_gateway_client.rb
+   * use web_token_by_media_items in lib/client/kollus_video_gateway_client.rb
+4. Call Kollus Player App
 
 ### Important code
 
-app.rb
+#### Common library
+
+lib/client/kollus_video_gateway_client.rb
+
 ```ruby
-post /\/auth\/web-token-url\/(.+)\/(.+)/ do |channel_key, upload_file_key|
-  # @type [KollusApiClient] kollus_api_client
-  kollus_api_client = settings.kollus_api_client
-  # @type [KollusVideoGatewayClient] kollus_video_gateway_client
-  kollus_video_gateway_client = settings.kollus_video_gateway_client
-
-  # find media-content-key for sample code
-  # use video table on database
-  # 
-  # @type [MediaContent] media_content
-  media_content = kollus_api_client.channel_media_content(
-    channel_key: channel_key,
-    upload_file_key: upload_file_key
-  )
-
-  content_type :json, 'charset' => 'utf-8'
-  {
-    title: media_content.title,
-    web_token_url: kollus_video_gateway_client.wet_token_url(
-      media_content_key: media_content.media_content_key,
-      client_user_id: session[:client_user_id]
-    )
-  }.to_json
-end
-```
-
-lib/kollus_video_gateway_client.rb
-```ruby
-  # web_token
+  # web_token_by_media_items
   #
-  # @param [String|Array<MediaItem>] media_content_key
+  # @param [Array<MediaItem>] media_items
   # @param [String|Nil] client_user_id
   # @param [Hash] options
   # @return [String]
-  def web_token(media_content_key:, client_user_id: nil, options: {})
+  def web_token_by_media_items(media_items:, client_user_id: nil, options: {})
     security_key = options[:security_key].nil? ? @service_account.security_key : options[:security_key]
     payload = { mc:[] }
 
-    if media_content_key.is_a?(Array)
-      media_content_key.each do |media_item|
-        if media_item.is_a?(MediaItem)
-          mc_claim = { mckey: media_item.media_content_key }
-          mc_claim[:mcpf] = media_item.media_profile_key unless media_item.media_profile_key.nil?
-          mc_claim[:is_intro] = media_item.is_intro unless media_item.is_intro.nil?
-          mc_claim[:is_seekable] = media_item.is_seekable unless media_item.is_seekable.nil?
-          payload[:mc].push(mc_claim)
-        end
-      end
-    else
-      mc_claim = { mckey: media_content_key }
-      mc_claim[:mcpf] = options[:media_profile_key] unless options[:media_profile_key].nil?
-      mc_claim[:is_intro] = options[:is_intro] unless options[:is_intro].nil?
-      mc_claim[:is_seekable] = options[:is_seekable] unless options[:is_seekable].nil?
+    media_items.each do |media_item|
+      next unless media_item.is_a?(MediaItem)
+      mc_claim = { mckey: media_item.media_content_key }
+      mc_claim[:mcpf] = media_item.profile_key unless media_item.profile_key.nil?
+      mc_claim[:is_intro] = media_item.is_intro unless media_item.is_intro.nil?
+      mc_claim[:is_seekable] = media_item.is_seekable unless media_item.is_seekable.nil?
+      mc_claim[:seekable_end] = media_item.seekable_end unless media_item.seekable_end.nil?
+      mc_claim[:disable_playrate] = media_item.disable_playrate unless media_item.disable_playrate.nil?
       payload[:mc].push(mc_claim)
     end
 
@@ -125,39 +135,215 @@ lib/kollus_video_gateway_client.rb
   end
 ```
 
+#### Play video
+
+app.rb
+```ruby
+post /\/auth\/play-video-url\/(.+)\/(.+)/ do |channel_key, upload_file_key|
+  ...
+
+  # @type [MediaContent] media_content
+  media_content = kollus_api_client.channel_media_content(
+    channel_key: channel_key,
+    upload_file_key: upload_file_key
+  )
+
+  content_type :json, 'charset' => 'utf-8'
+  {
+    title: media_content.title,
+    web_token_url: kollus_video_gateway_client.web_token_url_by_media_content_key(
+      media_content_key: media_content.media_content_key,
+      client_user_id: session[:client_user_id],
+      options: {
+        expire_time: settings.kollus['play_options']['expire_time'], # 1day
+        autoplay: true
+      }
+    )
+  }.to_json
+end
+```
+
 public/js/default.js
 
 ```javascript
 $(document).on('click', 'button[data-action=modal-play-video]', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
+  e.preventDefault();
 
-    var self = this,
-        channelKey = $(self).attr('data-channel-key'),
-        uploadFileKey = $(self).attr('data-upload-file-key'),
-        mediaContent;
+  ...
 
-    $.post('/web-token-url/' + channelKey + '/' + uploadFileKey, function (data) {
-        mediaContent = $(
-            '<div class="modal-header">\n' +
-            '    <button type="button" class="close" data-dismiss="modal">&times;</button>\n' +
-            '    <h4 class="modal-title">' + data.title + '</h4>\n' +
-            '</div>\n'+
-            '<div class="modal-body">\n' +
-            '    <div class="embed-responsive embed-responsive-16by9">\n' +
-            '        <iframe src="' + data.web_token_url + '" class="embed-responsive-item" allowfullscreen></iframe>\n' +
-            '    </div>\n' +
-            '</div>\n' +
-            '<div class="modal-footer">\n' +
-            '    <div class="btn-group">\n' +
-            '        <a href="' + data.web_token_url + '" class="btn btn-warning" target="_blank"><span class="fa fa-link"> Link</a>\n' +
-            '        <button type="button" class="btn btn-default" data-dismiss="modal"><span class="fa fa-times"></span> Close</button>\n' +
-            '    </div>\n' +
-            '</div>'
-        );
+  $.post('/auth/play-video-url/' + channelKey + '/' + uploadFileKey, function (data) {
+    modalContent = $(
 
-        showModal(mediaContent)
+      ...
+
+      '        <iframe src="' + data.web_token_url + '" class="embed-responsive-item" allowfullscreen></iframe>\n' +
+
+      ...
+
+    );
+
+    showModal(modalContent)
+  });
+});
+```
+
+#### Download video
+
+app.rb
+
+```ruby
+post /\/auth\/download-video-url\/(.+)\/(.+)/ do |channel_key, upload_file_key|
+  ...
+
+  # @type [MediaContent] media_content
+  media_content = kollus_api_client.channel_media_content(
+    channel_key: channel_key,
+    upload_file_key: upload_file_key
+  )
+
+  content_type :json, 'charset' => 'utf-8'
+  {
+    title: media_content.title,
+    web_token_url: kollus_video_gateway_client.web_token_url_by_media_content_key(
+      media_content_key: media_content.media_content_key,
+      client_user_id: session[:client_user_id],
+      options: {
+        expire_time: settings.kollus['play_options']['expire_time'], # 1day
+        download: true
+      }
+    )
+  }.to_json
+end
+```
+
+public/js/default.js
+
+```javascript
+$(document).on('click', 'button[data-action=modal-download-video]', function(e) {
+  e.preventDefault();
+
+  ...
+
+  $.post('/auth/download-video-url/' + channelKey + '/' + uploadFileKey, function (data) {
+    modalContent = $(
+
+      ...
+
+      '        <iframe src="' + data.web_token_url + '" class="embed-responsive-item" allowfullscreen></iframe>\n' +
+
+      ...
+
+    );
+
+    showModal(modalContent)
+  });
+});
+```
+
+#### Play video by playlist
+
+app.rb
+
+```ruby
+post /\/auth\/play-video-playlist\/(.+)/ do |channel_key|
+  ...
+
+  media_items = params['selected_media_items'].map do |index, media_item|
+    media_content = kollus_api_client.channel_media_content(
+      channel_key: channel_key,
+      upload_file_key: media_item['upload_file_key']
+    )
+
+    MediaItem.new({ media_content_key: media_content.media_content_key })
+  end
+
+  content_type :json, 'charset' => 'utf-8'
+  {
+    web_token_url: kollus_video_gateway_client.web_token_url_by_media_items(
+      media_items: media_items,
+      client_user_id: session[:client_user_id],
+      options: {
+        kind: 'si',
+        expire_time: settings.kollus['play_options']['expire_time'], # 1day
+        autoplay: true
+      }
+    )
+  }.to_json
+end
+```
+
+public/js/default.js
+
+```javascript
+$(document).on('click', 'button[data-action=call-download-multi-video]', function(e) {
+  e.preventDefault();
+
+  ...
+
+  checkedItems.each(function(index, element) {
+    uploadFileKey = $(element).val();
+
+    postDatas.selected_media_items.push({
+      upload_file_key: uploadFileKey
     });
+  });
+
+  $.post('/auth/download-multi-video/' + channelKey, postDatas, function (data) {
+    document.location.href = 'kollus://download?url=' + encodeURIComponent(data.web_token_url);
+  });
+});
+```
+
+#### Download multi video
+
+app.rb
+
+```ruby
+post /\/auth\/download-multi-video\/(.+)/ do |channel_key|
+  ...
+
+  media_items = params['selected_media_items'].map do |index, media_item|
+    media_content = kollus_api_client.channel_media_content(
+      channel_key: channel_key,
+      upload_file_key: media_item['upload_file_key']
+    )
+
+    MediaItem.new({ media_content_key: media_content.media_content_key })
+  end
+
+  content_type :json, 'charset' => 'utf-8'
+  {
+    web_token_url: kollus_video_gateway_client.web_token_url_by_media_items(
+      media_items: media_items,
+      client_user_id: session[:client_user_id],
+      options: {
+        kind: 'si',
+        expire_time: settings.kollus['play_options']['expire_time'], # 1day
+      }
+    )
+  }.to_json
+end
+```
+
+public/js/default.js
+
+```javascript
+$(document).on('click', 'button[data-action=call-play-video-playlist]', function(e) {
+  e.preventDefault();
+
+  ...
+
+  checkedItems.each(function(index, element) {
+    uploadFileKey = $(element).val();
+
+    postDatas.selected_media_items.push({
+      upload_file_key: uploadFileKey
+    });
+  });
+
+  $.post('/auth/play-video-playlist/' + channelKey, postDatas, function (data) {
+    document.location.href = 'kollus://path?url=' + encodeURIComponent(data.web_token_url);
+  });
 });
 ```
 

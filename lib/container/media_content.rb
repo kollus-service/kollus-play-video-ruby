@@ -50,13 +50,7 @@ class MediaContent < Container
   #
   # @return [Void]
   def initialize(args)
-    exclude_keys = [
-      'category_name',
-      'category_key',
-      'channels',
-      'media_information',
-      'transcoding_files'
-    ]
+    exclude_keys = %w(category_name category_key channels media_information transcoding_files)
 
     args.each do |k, v|
       unless v.nil? || exclude_keys.include?(k)

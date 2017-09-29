@@ -8,9 +8,11 @@ require_relative 'container'
 # @attr [Int] is_seekable
 class MediaItem < Container
   attr_accessor(
-      :media_content_key,
-      :profile_key,
-      :is_intro,
-      :is_seekable
+    :media_content_key,
+    :profile_key,
+    :is_intro,
+    :is_seekable,
+    :seekable_end,
+    :disable_playrate,
   )
 end
