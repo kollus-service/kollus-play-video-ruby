@@ -43,6 +43,12 @@ get '/' do
   erb :index, locals: locals
 end
 
+get '/logout' do
+  session[:client_user_id] = nil
+
+  redirect to('/')
+end
+
 post '/' do
   session[:client_user_id] = params[:client_user_id]
 
